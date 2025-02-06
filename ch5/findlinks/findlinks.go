@@ -1,9 +1,7 @@
-package findLinks
+package main
 
 import (
 	"fmt"
-	"kinglet-go/ch5/links"
-	"log"
 	"os"
 
 	"golang.org/x/net/html"
@@ -32,32 +30,4 @@ func visit(links []string, n *html.Node) []string {
 		links = visit(links, c)
 	}
 	return links
-}
-
-//
-
-func breadthFirst(f func(item string) []string, worklist []string) {
-	seen := make(map[string]bool)
-	for len(worklist) > 0 {
-		items := worklist
-		worklist = nil
-		for _, item := range items {
-			if !seen[item] {
-				seen[item] = true
-				worklist = append(worklist, f(item)...)
-			}
-		}
-	}
-}
-
-func crawl(url string) []string {
-	fmt.Println(url)
-	list, err := links.Extract(url)
-	if err != nil {
-		log.Print(err)
-	}
-	return list
-}
-func findlinks3() {
-	breadthFirst(crawl, os.Args[1:])
 }

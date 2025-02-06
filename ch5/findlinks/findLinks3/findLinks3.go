@@ -1,4 +1,4 @@
-package findLinks3
+package main
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 )
-
-//
 
 func breadthFirst(f func(item string) []string, worklist []string) {
 	seen := make(map[string]bool)
@@ -31,6 +29,6 @@ func crawl(url string) []string {
 	}
 	return list
 }
-func findlinks3() {
+func main() {
 	breadthFirst(crawl, os.Args[1:])
 }
