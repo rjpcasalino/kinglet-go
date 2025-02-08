@@ -10,14 +10,18 @@ import (
 )
 
 func main() {
-	db := database{"shoes": "50", "socks": "5"}
+	db := database{"shoes": 50, "socks": 5}
 	http.HandleFunc("/list", db.list)
 	http.HandleFunc("/price", db.price)
 	http.HandleFunc("/currency", db.usd)
 	log.Fatal(http.ListenAndServe("[::1]:8000", nil))
 }
 
-type database map[string]string // dollars in book
+type dollars float32
+
+func (d dollars) String() string { return fmt.Sprintf("$%.2f", d) }
+
+type database map[string]dollars
 
 func (db database) list(w http.ResponseWriter, req *http.Request) {
 	for item, price := range db {
