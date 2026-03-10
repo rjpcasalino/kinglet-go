@@ -16,12 +16,12 @@ import (
 
 var (
 	defaultDir = func() string {
-		exe, err := os.Executable()
+		wd, err := os.Getwd()
 		if err != nil {
-			log.Printf("could not determine executable path: %v, using current directory", err)
+			log.Printf("could not determine working directory: %v, using current directory", err)
 			return "."
 		}
-		return filepath.Dir(exe)
+		return wd
 	}()
 	listen = flag.String("listen", ":8080", "listen address")
 	dir    = flag.String("dir", defaultDir, "directory to serve")
