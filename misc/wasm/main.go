@@ -35,6 +35,13 @@ func main() {
 	setupForm(doc)
 	renderTasks(doc)
 
+	clearCompletedFn := js.FuncOf(func(this js.Value, args []js.Value) any {
+		clearCompleted(doc)
+		return nil
+	})
+	js.Global().Set("clearCompleted", clearCompletedFn)
+	staticHandlers = append(staticHandlers, clearCompletedFn)
+
 	js.Global().Get("document").Get("body").Get("classList").Call("add", "wasm-ready")
 	js.Global().Get("document").Call("getElementById", "loading").Set("textContent", "WASM todo app is ready.")
 
@@ -132,10 +139,12 @@ func renderTasks(doc js.Value) {
 		}
 
 		label := doc.Call("createElement", "span")
+		label.Get("classList").Call("add", "todo-text")
 		label.Set("textContent", t.Text)
 
 		checkbox := doc.Call("createElement", "input")
 		checkbox.Set("type", "checkbox")
+		checkbox.Get("classList").Call("add", "todo-check")
 		checkbox.Set("checked", t.Done)
 		cbHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 			toggleTask(taskID)
@@ -145,8 +154,8 @@ func renderTasks(doc js.Value) {
 		checkbox.Call("addEventListener", "change", cbHandler)
 
 		deleteBtn := doc.Call("createElement", "button")
-		deleteBtn.Get("classList").Call("add", "ghost")
-		deleteBtn.Set("textContent", "Delete")
+		deleteBtn.Get("classList").Call("add", "btn-delete")
+		deleteBtn.Set("textContent", "✕")
 		delHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
 			deleteTask(taskID)
 			renderTasks(doc)
@@ -166,7 +175,17 @@ func renderTasks(doc js.Value) {
 	if len(tasks) == 1 {
 		plural = ""
 	}
-	count.Set("textContent", fmt.Sprintf("%d item%s", len(tasks), plural))
+	done := 0
+	for _, t := range tasks {
+		if t.Done {
+			done++
+		}
+	}
+	if done == 0 {
+		count.Set("textContent", fmt.Sprintf("%d item%s", len(tasks), plural))
+	} else {
+		count.Set("textContent", fmt.Sprintf("%d of %d done", done, len(tasks)))
+	}
 }
 
 func persistTasks() {
@@ -206,6 +225,18 @@ func loadTasks() {
 		}
 	}
 	nextID = maxID + 1
+}
+
+func clearCompleted(doc js.Value) {
+	kept := make([]task, 0, len(tasks))
+	for _, t := range tasks {
+		if !t.Done {
+			kept = append(kept, t)
+		}
+	}
+	tasks = kept
+	persistTasks()
+	renderTasks(doc)
 }
 
 func releaseCallbacks() {

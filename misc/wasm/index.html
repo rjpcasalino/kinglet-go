@@ -1,180 +1,599 @@
-<html>
-    <head>
-        <meta charset="utf-8"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1"/>
-        <title>Kinglet Go WASM • TODO demo</title>
-        <style>
-            :root {
-                color-scheme: light;
-                font-family: "Inter", system-ui, -apple-system, sans-serif;
-                background: #f8fafc;
-                color: #0f172a;
-            }
-            body {
-                margin: 0;
-                display: flex;
-                justify-content: center;
-                padding: 32px 12px 48px;
-            }
-            .card {
-                background: white;
-                border-radius: 16px;
-                padding: 24px;
-                max-width: 640px;
-                width: 100%;
-                box-shadow: 0 12px 35px rgba(15, 23, 42, 0.12);
-                border: 1px solid #e2e8f0;
-            }
-            h1 {
-                margin-top: 0;
-                margin-bottom: 8px;
-                font-size: 26px;
-            }
-            p {
-                line-height: 1.5;
-                margin-top: 4px;
-            }
-            .pill {
-                display: inline-flex;
-                gap: 8px;
-                align-items: center;
-                background: #f1f5f9;
-                border-radius: 999px;
-                padding: 6px 12px;
-                font-size: 14px;
-                margin: 6px 0;
-            }
-            .pill strong {
-                color: #0ea5e9;
-            }
-            .steps {
-                margin: 12px 0 20px;
-                padding-left: 20px;
-            }
-            .steps li {
-                margin-bottom: 6px;
-            }
-            form {
-                display: flex;
-                gap: 8px;
-                margin: 18px 0;
-            }
-            input[type="text"] {
-                flex: 1;
-                padding: 12px 14px;
-                border: 1px solid #cbd5e1;
-                border-radius: 12px;
-                font-size: 16px;
-            }
-            button {
-                background: #0ea5e9;
-                color: white;
-                border: none;
-                border-radius: 12px;
-                padding: 12px 16px;
-                font-size: 15px;
-                cursor: pointer;
-                box-shadow: 0 8px 20px rgba(14, 165, 233, 0.24);
-                transition: transform 120ms ease, box-shadow 120ms ease;
-            }
-            button:hover { transform: translateY(-1px); }
-            button:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(14,165,233,0.22); }
-            button.ghost {
-                background: transparent;
-                color: #ef4444;
-                box-shadow: none;
-                padding: 8px 10px;
-            }
-            ul {
-                list-style: none;
-                padding: 0;
-                margin: 0;
-            }
-            .todo-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 10px 0;
-                border-bottom: 1px solid #e2e8f0;
-            }
-            .todo-item input[type="checkbox"] {
-                width: 18px;
-                height: 18px;
-            }
-            .todo-item.todo-done span {
-                text-decoration: line-through;
-                color: #94a3b8;
-            }
-            .empty {
-                padding: 12px;
-                background: #f8fafc;
-                border: 1px dashed #cbd5e1;
-                border-radius: 12px;
-                margin-top: 8px;
-            }
-            .hidden { display: none; }
-            .status {
-                font-size: 14px;
-                color: #475569;
-                min-height: 18px;
-            }
-            #loading {
-                color: #0ea5e9;
-                font-weight: 600;
-                margin-bottom: 6px;
-            }
-        </style>
-        <script src="wasm_exec.js"></script>
-        <script>
-            async function start() {
-                const loading = document.getElementById("loading");
-                if (typeof Go === "undefined") {
-                    loading.textContent = "Your browser cannot run this WebAssembly demo.";
-                    return;
-                }
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kinglet Go WASM • TODO</title>
+    <style>
+      /* ── design tokens ─────────────────────────────────────────────────── */
+      :root {
+        --bg:           #f1f5f9;
+        --surface:      #ffffff;
+        --surface2:     #f8fafc;
+        --border:       #e2e8f0;
+        --text:         #0f172a;
+        --text-muted:   #64748b;
+        --accent:       #6366f1;
+        --accent-hover: #4f46e5;
+        --accent-light: #eef2ff;
+        --danger:       #ef4444;
+        --done-text:    #94a3b8;
+        --radius:       14px;
+        --shadow:       0 8px 32px rgba(15, 23, 42, .10);
+        color-scheme: light;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+      }
+      [data-theme="dark"] {
+        --bg:           #0f172a;
+        --surface:      #1e293b;
+        --surface2:     #0f172a;
+        --border:       #334155;
+        --text:         #f1f5f9;
+        --text-muted:   #94a3b8;
+        --accent:       #818cf8;
+        --accent-hover: #6366f1;
+        --accent-light: #1e1b4b;
+        --danger:       #f87171;
+        --done-text:    #475569;
+        color-scheme: dark;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        padding: 40px 16px 64px;
+        transition: background 0.3s, color 0.3s;
+      }
 
-                const go = new Go();
-                try {
-                    let wasm;
-                    try {
-                        wasm = await WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject);
-                    } catch (streamErr) {
-                        const resp = await fetch("main.wasm");
-                        const bytes = await resp.arrayBuffer();
-                        wasm = await WebAssembly.instantiate(bytes, go.importObject);
-                    }
-                    go.run(wasm.instance);
-                } catch (err) {
-                    loading.textContent = "Could not load WASM (serve this folder with `go run web/web.go`).";
-                    console.error(err);
-                }
-            }
-            window.addEventListener("DOMContentLoaded", start);
-        </script>
-    </head>
-    <body>
-        <main class="card">
-            <h1>Go WASM TODO</h1>
-            <div class="pill"><strong>Goal:</strong> show a tiny Go app compiled to WebAssembly.</div>
-            <p id="loading">Loading WebAssembly…</p>
-            <p class="status" id="todo-status"></p>
-            <form id="todo-form">
-                <input id="todo-input" type="text" placeholder="Add a task (built with Go ➜ WASM)"/>
-                <button type="submit">Add</button>
-            </form>
-            <ul id="todo-list"></ul>
-            <p id="todo-empty" class="empty">Nothing yet. Add your first task above.</p>
-            <p id="todo-count" class="status"></p>
-            <section>
-                <h2>Try it locally (no terminal expertise needed)</h2>
-                <ol class="steps">
-                    <li>Install Go 1.22+ from <a href="https://go.dev/dl/" target="_blank" rel="noopener noreferrer">go.dev/dl/</a>.</li>
-                    <li>Open a terminal in this <code>misc/wasm</code> folder (or right-click &ldquo;Open in Terminal&rdquo;).</li>
-                    <li>Run this single command: <br/><code>GOOS=js GOARCH=wasm go build -o main.wasm main.go && go run web/web.go</code></li>
-                    <li>Your browser opens at <code>http://localhost:8080</code>. Add and check off TODOs!</li>
-                </ol>
-                <p class="status">The server just serves this folder; nothing else is required.</p>
-            </section>
-        </main>
-    </body>
+      /* ── card ──────────────────────────────────────────────────────────── */
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius);
+        padding: 28px 28px 32px;
+        max-width: 640px;
+        width: 100%;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        transition: background 0.3s, border-color 0.3s;
+      }
+
+      /* ── header ────────────────────────────────────────────────────────── */
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .header-left { flex: 1; }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, var(--accent), #ec4899);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: var(--text-muted);
+        margin: 0;
+      }
+
+      /* ── theme toggle ──────────────────────────────────────────────────── */
+      .theme-toggle {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        border-radius: 50%;
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+      }
+      .theme-toggle:hover {
+        transform: rotate(20deg);
+        background: var(--accent-light);
+        color: var(--accent);
+      }
+
+      /* ── wasm status ───────────────────────────────────────────────────── */
+      #loading {
+        font-size: 13px;
+        color: var(--accent);
+        font-weight: 600;
+        margin: 0 0 16px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      #loading::before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent);
+        animation: pulse 1.2s infinite;
+      }
+      body.wasm-ready #loading::before {
+        animation: none;
+        background: #22c55e;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%       { opacity: 0.4; transform: scale(0.7); }
+      }
+
+      /* ── progress bar ──────────────────────────────────────────────────── */
+      .progress-wrap { margin-bottom: 20px; }
+      .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 6px;
+      }
+      .progress-bar {
+        height: 6px;
+        background: var(--border);
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #ec4899);
+        border-radius: 99px;
+        width: 0%;
+        transition: width 0.4s cubic-bezier(.4, 0, .2, 1);
+      }
+
+      /* ── form ──────────────────────────────────────────────────────────── */
+      form {
+        display: flex;
+        gap: 8px;
+        margin: 0 0 8px;
+      }
+      input[type="text"] {
+        flex: 1;
+        padding: 12px 16px;
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        font-size: 15px;
+        background: var(--surface);
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      input[type="text"]:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+      }
+      input[type="text"]::placeholder { color: var(--text-muted); opacity: 0.8; }
+      .btn-add {
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        padding: 12px 20px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, .35);
+        transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      }
+      .btn-add:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(99, 102, 241, .4);
+      }
+      .btn-add:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(99, 102, 241, .3); }
+
+      /* ── form status ───────────────────────────────────────────────────── */
+      .form-status {
+        font-size: 13px;
+        color: var(--text-muted);
+        min-height: 18px;
+        margin: 0 0 12px;
+      }
+
+      /* ── filter tabs ───────────────────────────────────────────────────── */
+      .filters {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 14px;
+        background: var(--surface2);
+        border-radius: 10px;
+        padding: 3px;
+        border: 1px solid var(--border);
+      }
+      .filter-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+      }
+      .filter-btn.active {
+        background: var(--surface);
+        color: var(--accent);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .1);
+      }
+      .filter-btn:hover:not(.active) { color: var(--text); }
+
+      /* ── task list ─────────────────────────────────────────────────────── */
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      .todo-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 10px;
+        border-radius: 10px;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.15s;
+        animation: slide-in 0.22s ease;
+      }
+      .todo-item:last-child { border-bottom: none; }
+      .todo-item:hover { background: var(--surface2); }
+      @keyframes slide-in {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      /* custom checkbox */
+      .todo-check {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+        flex-shrink: 0;
+        background: var(--surface);
+        transition: background 0.2s, border-color 0.2s, transform 0.15s;
+        position: relative;
+      }
+      .todo-check:checked {
+        background: var(--accent);
+        border-color: var(--accent);
+        transform: scale(1.05);
+      }
+      .todo-check:checked::after {
+        content: '';
+        position: absolute;
+        left: 4px;
+        top: 1px;
+        width: 8px;
+        height: 12px;
+        border: 2.5px solid white;
+        border-top: none;
+        border-left: none;
+        transform: rotate(45deg);
+      }
+      .todo-check:hover:not(:checked) { border-color: var(--accent); }
+
+      /* task text */
+      .todo-text {
+        flex: 1;
+        font-size: 15px;
+        transition: color 0.2s;
+      }
+      .todo-item.todo-done .todo-text {
+        text-decoration: line-through;
+        color: var(--done-text);
+      }
+
+      /* delete button */
+      .btn-delete {
+        background: transparent;
+        color: var(--text-muted);
+        border: none;
+        border-radius: 8px;
+        padding: 4px 8px;
+        font-size: 16px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s, color 0.2s, background 0.2s;
+        line-height: 1;
+      }
+      .todo-item:hover .btn-delete { opacity: 1; }
+      .btn-delete:hover { color: var(--danger); background: rgba(239, 68, 68, .1); }
+
+      /* ── empty state ───────────────────────────────────────────────────── */
+      .empty-state {
+        text-align: center;
+        padding: 32px 16px;
+        color: var(--text-muted);
+      }
+      .empty-state .empty-icon { font-size: 40px; margin-bottom: 8px; }
+      .empty-state p { margin: 0; font-size: 14px; }
+
+      /* ── footer ────────────────────────────────────────────────────────── */
+      .todo-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+        gap: 12px;
+      }
+      .todo-count { font-size: 13px; color: var(--text-muted); }
+      .btn-clear {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 5px 12px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s, background 0.2s;
+      }
+      .btn-clear:hover { color: var(--danger); border-color: var(--danger); background: rgba(239, 68, 68, .05); }
+      .btn-clear:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+
+      /* ── toast ─────────────────────────────────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: 28px;
+        left: 50%;
+        transform: translateX(-50%) translateY(60px);
+        background: var(--text);
+        color: var(--surface);
+        padding: 10px 20px;
+        border-radius: 99px;
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        z-index: 1000;
+        white-space: nowrap;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      /* ── how-to section ────────────────────────────────────────────────── */
+      .howto {
+        margin-top: 28px;
+        border-top: 1px solid var(--border);
+        padding-top: 20px;
+      }
+      .howto h2 {
+        font-size: 15px;
+        margin: 0 0 10px;
+        color: var(--text-muted);
+        font-weight: 600;
+      }
+      .steps { margin: 0 0 8px; padding-left: 20px; }
+      .steps li { margin-bottom: 6px; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+      .steps a { color: var(--accent); }
+      code {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        padding: 2px 6px;
+        border-radius: 5px;
+        font-size: 13px;
+      }
+
+      .hidden { display: none !important; }
+    </style>
+    <script src="wasm_exec.js"></script>
+    <script>
+      // ── theme ──────────────────────────────────────────────────────────────
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+      function applyTheme(dark) {
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        const btn = document.getElementById('theme-toggle');
+        if (btn) btn.textContent = dark ? '☀️' : '🌙';
+      }
+      const savedTheme = localStorage.getItem('kinglet-theme');
+      applyTheme(savedTheme !== null ? savedTheme === 'dark' : prefersDark.matches);
+
+      // ── filter state ───────────────────────────────────────────────────────
+      let currentFilter = 'all';
+
+      function applyFilter() {
+        const items = document.querySelectorAll('.todo-item');
+        items.forEach(item => {
+          const done = item.classList.contains('todo-done');
+          let show = true;
+          if (currentFilter === 'active') show = !done;
+          if (currentFilter === 'done')   show = done;
+          item.style.display = show ? '' : 'none';
+        });
+        updateProgress();
+      }
+
+      function setFilter(f) {
+        currentFilter = f;
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.classList.toggle('active', b.dataset.filter === f);
+        });
+        applyFilter();
+      }
+
+      // ── progress bar ───────────────────────────────────────────────────────
+      function updateProgress() {
+        const all  = document.querySelectorAll('.todo-item').length;
+        const done = document.querySelectorAll('.todo-item.todo-done').length;
+        const pct  = all === 0 ? 0 : Math.round(done / all * 100);
+        const fill     = document.getElementById('progress-fill');
+        const label    = document.getElementById('progress-pct');
+        const clearBtn = document.getElementById('clear-completed');
+        if (fill)     fill.style.width = pct + '%';
+        if (label)    label.textContent = all === 0 ? '' : pct + '%';
+        if (clearBtn) clearBtn.disabled = done === 0;
+      }
+
+      // ── toast ──────────────────────────────────────────────────────────────
+      let toastTimer;
+      function showToast(msg) {
+        const el = document.getElementById('toast');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+      }
+
+      // ── observe todo-list for Go-driven DOM changes ────────────────────────
+      function observeTodoList() {
+        const list = document.getElementById('todo-list');
+        if (!list) return;
+        new MutationObserver(() => {
+          applyFilter();
+          updateProgress();
+        }).observe(list, { childList: true });
+      }
+
+      // ── WASM loader ────────────────────────────────────────────────────────
+      async function start() {
+        const loading = document.getElementById('loading');
+        if (typeof Go === 'undefined') {
+          loading.textContent = 'Your browser cannot run this WebAssembly demo.';
+          return;
+        }
+        const go = new Go();
+        try {
+          let wasm;
+          try {
+            wasm = await WebAssembly.instantiateStreaming(fetch('main.wasm'), go.importObject);
+          } catch (streamErr) {
+            console.warn('Streaming instantiation failed, falling back:', streamErr);
+            const resp  = await fetch('main.wasm');
+            const bytes = await resp.arrayBuffer();
+            wasm = await WebAssembly.instantiate(bytes, go.importObject);
+          }
+          go.run(wasm.instance);
+        } catch (err) {
+          loading.textContent = "Could not load WASM — run: go run web/web.go";
+          console.error(err);
+        }
+      }
+
+      window.addEventListener('DOMContentLoaded', () => {
+        observeTodoList();
+        start();
+
+        // theme toggle
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+          const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+          applyTheme(!dark);
+          localStorage.setItem('kinglet-theme', !dark ? 'dark' : 'light');
+        });
+
+        // filter tabs
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+          btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+        });
+
+        // clear completed
+        document.getElementById('clear-completed').addEventListener('click', () => {
+          if (typeof window.clearCompleted === 'function') {
+            window.clearCompleted();
+            showToast('Completed tasks cleared ✓');
+          }
+        });
+
+        // show toast on task add (the form submit is handled by Go; we piggyback)
+        document.getElementById('todo-form').addEventListener('submit', () => {
+          const val = document.getElementById('todo-input').value.trim();
+          if (val) setTimeout(() => showToast('Task added ✓'), 50);
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <main class="card">
+      <!-- header -->
+      <div class="header">
+        <div class="header-left">
+          <h1>✦ Todo</h1>
+          <p class="subtitle">Powered by Go → WebAssembly</p>
+        </div>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">🌙</button>
+      </div>
+
+      <!-- wasm status -->
+      <p id="loading">Loading WebAssembly…</p>
+
+      <!-- progress bar -->
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Progress</span>
+          <span id="progress-pct"></span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- add form -->
+      <form id="todo-form">
+        <input id="todo-input" type="text" placeholder="What needs to be done?" autocomplete="off" />
+        <button type="submit" class="btn-add">Add</button>
+      </form>
+      <p class="form-status" id="todo-status"></p>
+
+      <!-- filter tabs -->
+      <div class="filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="active">Active</button>
+        <button class="filter-btn" data-filter="done">Done</button>
+      </div>
+
+      <!-- task list -->
+      <ul id="todo-list"></ul>
+
+      <!-- empty state -->
+      <div id="todo-empty" class="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>Nothing here yet — add your first task above!</p>
+      </div>
+
+      <!-- footer -->
+      <div class="todo-footer">
+        <span class="todo-count" id="todo-count"></span>
+        <button class="btn-clear" id="clear-completed" disabled>Clear completed</button>
+      </div>
+
+      <!-- how-to section -->
+      <section class="howto">
+        <h2>Run it locally</h2>
+        <ol class="steps">
+          <li>Install Go 1.22+ from <a href="https://go.dev/dl/" target="_blank" rel="noopener noreferrer">go.dev/dl/</a>.</li>
+          <li>Open a terminal in <code>misc/wasm</code>.</li>
+          <li>Run: <code>GOOS=js GOARCH=wasm go build -o main.wasm main.go &amp;&amp; go run web/web.go</code></li>
+          <li>Your browser opens at <code>http://localhost:8080</code>. Add and check off TODOs!</li>
+        </ol>
+      </section>
+    </main>
+
+    <!-- toast notification -->
+    <div class="toast" id="toast"></div>
+  </body>
 </html>
