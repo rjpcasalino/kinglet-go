@@ -18,6 +18,7 @@ var (
 	defaultDir = func() string {
 		exe, err := os.Executable()
 		if err != nil {
+			log.Printf("could not determine executable path: %v, using current directory", err)
 			return "."
 		}
 		return filepath.Dir(exe)
