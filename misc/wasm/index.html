@@ -143,7 +143,7 @@
                         const bytes = await resp.arrayBuffer();
                         wasm = await WebAssembly.instantiate(bytes, go.importObject);
                     }
-                    await go.run(wasm.instance);
+                    go.run(wasm.instance);
                 } catch (err) {
                     loading.textContent = "Could not load WASM (serve this folder with `go run web/web.go`).";
                     console.error(err);
