@@ -123,6 +123,7 @@ func renderTasks(doc js.Value) {
 	empty.Get("classList").Call("add", "hidden")
 
 	for _, t := range tasks {
+		taskID := t.ID
 		row := doc.Call("createElement", "li")
 		row.Get("classList").Call("add", "todo-item")
 		if t.Done {
@@ -136,7 +137,7 @@ func renderTasks(doc js.Value) {
 		checkbox.Set("type", "checkbox")
 		checkbox.Set("checked", t.Done)
 		cbHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
-			toggleTask(t.ID)
+			toggleTask(taskID)
 			renderTasks(doc)
 			return nil
 		})
@@ -146,7 +147,7 @@ func renderTasks(doc js.Value) {
 		deleteBtn.Get("classList").Call("add", "ghost")
 		deleteBtn.Set("textContent", "Delete")
 		delHandler := js.FuncOf(func(this js.Value, args []js.Value) any {
-			deleteTask(t.ID)
+			deleteTask(taskID)
 			renderTasks(doc)
 			return nil
 		})
