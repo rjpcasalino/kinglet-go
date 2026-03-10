@@ -5,10 +5,12 @@ package main
 import (
 	"flag"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 var (
@@ -26,11 +28,30 @@ func main() {
 	log.Printf("listening on %q...", *listen)
 
 	if *open {
-		go openBrowser("http://localhost" + *listen)
+		go openBrowser(browserURL(*listen))
 	}
 
 	err = http.ListenAndServe(*listen, http.FileServer(http.Dir(*dir)))
 	log.Fatalln(err)
+}
+
+func browserURL(addr string) string {
+	addr = strings.TrimSpace(addr)
+
+	if !strings.Contains(addr, "://") && strings.Contains(addr, ":") {
+		host, port, err := net.SplitHostPort(addr)
+		if err == nil {
+			if host == "" || host == "0.0.0.0" || host == "::" || host == "[::]" {
+				host = "localhost"
+			}
+			return "http://" + host + ":" + port
+		}
+	}
+
+	if !strings.HasPrefix(addr, "http://") && !strings.HasPrefix(addr, "https://") {
+		return "http://" + addr
+	}
+	return addr
 }
 
 func openBrowser(url string) {
@@ -46,6 +67,6 @@ func openBrowser(url string) {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("open browser: %v", err)
+		log.Printf("could not automatically open browser: %v", err)
 	}
 }

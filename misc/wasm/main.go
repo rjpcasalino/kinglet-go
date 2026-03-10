@@ -123,7 +123,6 @@ func renderTasks(doc js.Value) {
 	empty.Get("classList").Call("add", "hidden")
 
 	for _, t := range tasks {
-		t := t
 		row := doc.Call("createElement", "li")
 		row.Get("classList").Call("add", "todo-item")
 		if t.Done {
