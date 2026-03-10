@@ -123,7 +123,7 @@ func renderTasks(doc js.Value) {
 	empty.Get("classList").Call("add", "hidden")
 
 	for _, t := range tasks {
-		// Capture ID per-iteration to avoid closures reusing the loop variable.
+		// Explicitly capture per-iteration ID so handlers always target the right task.
 		taskID := t.ID
 		row := doc.Call("createElement", "li")
 		row.Get("classList").Call("add", "todo-item")

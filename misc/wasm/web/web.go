@@ -50,7 +50,7 @@ func browserURL(addr string) string {
 	if !strings.Contains(addr, "://") && strings.Contains(addr, ":") {
 		host, port, err := net.SplitHostPort(addr)
 		if err == nil {
-			if host == "" || host == "0.0.0.0" || host == "::" || host == "[::]" {
+			if host == "" || host == "0.0.0.0" || host == "::" {
 				host = "localhost"
 			}
 			return "http://" + host + ":" + port
