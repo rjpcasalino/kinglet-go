@@ -9,13 +9,21 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
 
 var (
+	defaultDir = func() string {
+		exe, err := os.Executable()
+		if err != nil {
+			return "."
+		}
+		return filepath.Dir(exe)
+	}()
 	listen = flag.String("listen", ":8080", "listen address")
-	dir    = flag.String("dir", ".", "directory to serve")
+	dir    = flag.String("dir", defaultDir, "directory to serve")
 	open   = flag.Bool("open", true, "open a browser once the server is running")
 )
 

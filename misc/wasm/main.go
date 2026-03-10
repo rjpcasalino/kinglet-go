@@ -198,11 +198,13 @@ func loadTasks() {
 	}
 
 	tasks = saved
+	maxID := 0
 	for _, t := range tasks {
-		if t.ID >= nextID {
-			nextID = t.ID + 1
+		if t.ID > maxID {
+			maxID = t.ID
 		}
 	}
+	nextID = maxID + 1
 }
 
 func releaseCallbacks() {
